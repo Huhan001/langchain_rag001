@@ -1,0 +1,8 @@
+# enviroment secretes
+.env
+
+#large data set
+scrimba-info.txt
+
+#loaded enviroment
+.venv
