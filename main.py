@@ -30,7 +30,7 @@ def RagApplication():
 
     # load enviroment .env file
     load_dotenv()
-    openai_key = os.getenv('OPEN_AI_API')
+    openai_key = os.getenv('OPENAI_API_KEY')
     openai_chat = ChatOpenAI(openai_api_key=openai_key)
     
     # chat prompt
