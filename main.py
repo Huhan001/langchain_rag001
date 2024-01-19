@@ -22,14 +22,16 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 #rettiver chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 
-
+# passing in documents directly
+from langchain_core.documents import Document
+from langchain.chains import create_retrieval_chain
 
 def RagApplication():
 
     # load enviroment .env file
     load_dotenv()
     openai_key = os.getenv('OPEN_AI_API')
-    openai_chat = ChatOpenAI(openai_api_key= openai_key)
+    openai_chat = ChatOpenAI(openai_api_key=openai_key)
     
     # chat prompt
     # prompt = ChatPromptTemplate.from_messages([
@@ -41,10 +43,10 @@ def RagApplication():
     # print(chain.invoke({"input": "how can langsmith help with testing?"}))
     
     # convertint to a string instead of a sentence as it is right now
-    Output_Parser = StrOutputParser()
+    # Output_Parser = StrOutputParser()
 
-    chain = prompt | openai_chat | Output_Parser
-    print(chain.invoke({"input": "how can langsmith help with testing?"}))
+    # chain = prompt | openai_chat | Output_Parser
+    # print(chain.invoke({"input": "how can langsmith help with testing?"}))
 
     #retreiver by passing in web and scrapping with beautiful soap
     loader = WebBaseLoader("https://docs.smith.langchain.com/overview")
@@ -59,10 +61,24 @@ def RagApplication():
     vector = FAISS.from_documents(documents, embeddings)
 
     #lets set up a chain that takes a question and retrieves documents then generaets an answer.
-    prompt = ChatPromptTemplate.
+    prompt = ChatPromptTemplate.from_template("""Answer the following question based only on the provided context:
+                                              <context>
+                                              {context}
+                                              </context>
 
+                                              Question: {input}""")
+    
+    document_cahin = create_stuff_documents_chain(openai_chat,prompt)
+    document_cahin.invoke({
+        "input": "how can langsmith help with testing?",
+        "context": [Document(page_content="langsmith can let you visualize test results")]
+    })
 
+    retriver = vector.as_retriever()
+    retrieval_chain = create_retrieval_chain(retriver, document_cahin)
 
+    response = retrieval_chain.invoke({"input": "how can langsmith help with testing?"})
+    print(response["answer"])
 
 
 
