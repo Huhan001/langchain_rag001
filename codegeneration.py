@@ -7,9 +7,25 @@ from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.document_loaders.csv_loader import CSVLoader
 import pandas as pd
 
-# # langsmith tracing
-# from langsmith.wrappers import wrap_openai
-# from langsmith import traceable
+from operator import itemgetter
+
+from langchain.output_parsers.openai_tools import PydanticToolsParser
+from langchain.prompts import PromptTemplate
+from langchain_core.pydantic_v1 import BaseModel, Field
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.utils.function_calling import convert_to_openai_tool
+from langchain_openai import ChatOpenAI
+
+
+# langsmith tracing
+from langsmith.wrappers import wrap_openai
+from langsmith import traceable
+
+import os
+from dotenv import  load_dotenv
+
+load_dotenv()
+api_key = os.getenv("open_ai_api")
 
 
 def doc_loader():
@@ -49,3 +65,60 @@ def doc_loader():
    
     return all_docs
 
+@traceable
+def run_model():
+    ## Data model
+    concatenated_content = doc_loader()
+    class code(BaseModel):
+        """Code output"""
+
+        prefix: str = Field(description="Description of the problem and approach")
+        imports: str = Field(description="Code block import statements")
+        code: str = Field(description="Code block not including import statements")
+
+    ## LLM
+    model = ChatOpenAI(api_key=api_key, temperature=0, model="gpt-4-0125-preview", streaming=True)
+
+    # Tool
+    code_tool_oai = convert_to_openai_tool(code)
+
+    # LLM with tool and enforce invocation
+    llm_with_tool = model.bind(
+        tools=[code_tool_oai],
+        tool_choice={"type": "function", "function": {"name": "code"}},
+    )
+
+    # Parser
+    parser_tool = PydanticToolsParser(tools=[code])
+
+    ## Prompt
+    template = """You are a coding assistant with expertise in Python, Streamlit and seaborn visualization. \n 
+        Here is a full set of documentation from Streamlit and seaborn websites and a penguins dataset in csv format: 
+        \n ------- \n
+        {context} 
+        \n ------- \n
+        Answer the user question based on the above provided documentation. \n
+        Ensure any code you provide can be executed with all required imports and variables defined. \n
+        Structure your answer with a description of the code solution. \n
+        Then list the imports. And finally list the functioning code block. \n
+        Here is the user question: \n --- --- --- \n {question}"""
+    
+        # Prompt
+    prompt = PromptTemplate(
+            template=template,
+            input_variables=["context", "question", "generation", "error"],
+        )
+
+        # Chain
+    chain = (
+            {
+                "context": lambda x: concatenated_content,
+                "question": itemgetter("question"),
+            }
+            | prompt
+            | llm_with_tool
+            | parser_tool
+        )
+    
+    outputs = chain.invoke({"question": "create a plot visualizing the relationship between species, boddymass and sex?"})
+    print(outputs)
