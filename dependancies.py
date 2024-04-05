@@ -40,17 +40,14 @@ def Document_loader():
         streamlit_docs = loader.load()
     
         # loading csv files
-        loader_csv = CSVLoader(file_path="/Users/humphreyhanson/fleet/langchain_rag001/dataset/penguins.csv")
-        csv_docs = loader_csv.load()
+        data = pd.read_csv("/Users/humphreyhanson/fleet/langchain_rag001/dataset/penguins.csv")
+        csv_docs = data.head(5).to_dict(orient='records')
 
     
         # adding all docs
         streamlit_docs.extend(csv_docs)
-        # streamlit_docs.extend(csvdocument)
     
-        # sort the list based on url in metadata
-        doc_sorted = sorted(streamlit_docs, key = lambda x: x.metadata['source'])
-        doc_reversed = list(reversed(doc_sorted))
-    
+        return streamlit_docs
 
-        return doc_reversed
+
+# Code should be executable within streamlit and compatible with streamlit chart elements, specifically st.altair_chart. \n

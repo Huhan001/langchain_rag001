@@ -43,7 +43,7 @@ def generate(state: GraphState):
         code: str = Field(description="Code block not including import statements")
 
     ## LLM
-    model = ChatOpenAI(api_key= api_key, temperature=0, model="gpt-4-turbo-preview", streaming=True)
+    model = ChatOpenAI(api_key= api_key, temperature=0, model="gpt-3.5-turbo", streaming=True)
 
     # Tool
     code_tool_oai = convert_to_openai_tool(code)
@@ -58,7 +58,7 @@ def generate(state: GraphState):
     parser_tool = PydanticToolsParser(tools=[code])
 
     ## Prompt
-    template = """You are a coding assistant with expertise in Python, Streamlit and Vega-Altair visualization library. \n 
+    template = """You are a coding assistant with expertise in Python,Streamlitand Vega-Altair visualization library. \n 
         Here is a full information and documentation on the dataset and libraries: 
         \n ------- \n
         {context} 
@@ -139,15 +139,46 @@ def generate(state: GraphState):
     }
 
 
-def check_code_imports(state: GraphState):
+
+
+
+def decide_to_finish(state: GraphState):
     """
-    Check imports
+    Determines whether to continue or finish based on the presence of errors.
 
     Args:
         state (dict): The current graph state
 
     Returns:
-        state (dict): New key added to state, error
+        str: Next node to call
+    """
+
+    print("---DECIDE TO CONTINUE OR FINISH---")
+    state_dict = state["keys"]
+    error = state_dict["error"]
+    iter = state_dict["iterations"]
+
+    if error is None:
+        # If there's no error, continue generating solutions
+        print("---DECISION: CONTINUE GENERATING SOLUTIONS---")
+        return "generate"
+    else:
+        # If there's an error, but the maximum number of iterations (3) is not reached,
+        # retry checking code imports
+        print("---DECISION: RE-TRY CHECKING CODE IMPORTS---")
+        return "check_code_imports" if iter < 3 else END
+
+
+
+def check_code_imports(state: GraphState):
+    """
+    Check imports and update requirements.txt if necessary.
+
+    Args:
+        state (dict): The current graph state
+
+    Returns:
+        state (dict): Updated state with potential error and modified requirements.txt
     """
 
     ## State
@@ -156,77 +187,69 @@ def check_code_imports(state: GraphState):
     question = state_dict["question"]
     code_solution = state_dict["generation"]
     imports = code_solution[0].imports
-    iter = state_dict["iterations"]
 
-    try:
-        # Attempt to execute the imports
-        exec(imports)
-    except Exception as e:
-        print("---CODE IMPORT CHECK: FAILED---")
-        # Catch any error during execution (e.g., ImportError, SyntaxError)
-        error = f"Execution error: {e}"
-        if "error" in state_dict:
-            error_prev_runs = state_dict["error"]
-            error = error_prev_runs + "\n --- Most recent run error --- \n" + error
+    # Get existing libraries from requirements.txt
+    with open("requirements.txt", "r") as f:
+        existing_libraries = set(line.strip() for line in f.readlines())
+
+    # Extract libraries from import statements
+    imported_libraries = set(import_line.split()[1] for import_line in imports.split("\n") if import_line.startswith("import"))
+
+    # Libraries to be added to requirements.txt
+    new_libraries = imported_libraries - existing_libraries
+
+    if new_libraries:
+        print("---MISSING LIBRARIES FOUND---")
+        print("Libraries to be added to requirements.txt:", new_libraries)
+
+        # Add new libraries to requirements.txt
+        with open("requirements.txt", "a") as f:
+            for library in new_libraries:
+                f.write(f"{library}\n")
+
+        # Update existing libraries set
+        existing_libraries.update(new_libraries)
+
+        # Inform the user about the update
+        print("requirements.txt has been updated.")
+
     else:
         print("---CODE IMPORT CHECK: SUCCESS---")
-        # No errors occurred
-        error = "None"
+        # No missing libraries
+        print("All required libraries are already present in requirements.txt.")
 
     return {
         "keys": {
-            "generation": code_solution,
             "question": question,
-            "error": error,
-            "iterations": iter,
+            "error": None,
         }
     }
 
-def check_code_execution(state: GraphState):
-    """
-    Check code block execution
 
-    Args:
-        state (dict): The current graph state
 
-    Returns:
-        state (dict): New key added to state, error
-    """
+def finally_execute(question):
 
-    ## State
-    print("---CHECKING CODE EXECUTION---")
-    state_dict = state["keys"]
-    question = state_dict["question"]
-    code_solution = state_dict["generation"]
-    prefix = code_solution[0].prefix
-    imports = code_solution[0].imports
-    code = code_solution[0].code
-    code_block = imports + "\n" + code
-    iter = state_dict["iterations"]
+    from langgraph.graph import END, StateGraph
 
-    try:
-        # Attempt to execute the code block
-        exec(code_block)
-    except Exception as e:
-        print("---CODE BLOCK CHECK: FAILED---")
-        # Catch any error during execution (e.g., ImportError, SyntaxError)
-        error = f"Execution error: {e}"
-        if "error" in state_dict:
-            error_prev_runs = state_dict["error"]
-            error = error_prev_runs + "\n --- Most recent run error --- \n" + error
-    else:
-        print("---CODE BLOCK CHECK: SUCCESS---")
-        # No errors occurred
-        error = "None"
+    workflow = StateGraph(GraphState)
 
-    return {
-        "keys": {
-            "generation": code_solution,
-            "question": question,
-            "error": error,
-            "prefix": prefix,
-            "imports": imports,
-            "iterations": iter,
-            "code": code,
-        }
-    }
+    # Define the nodes
+    workflow.add_node("generate", generate)  # generation solution
+    workflow.add_node("check_code_imports", check_code_imports)  # check imports
+
+    # Build graph
+    workflow.set_entry_point("generate")
+    workflow.add_edge("generate", "check_code_imports")
+    workflow.add_conditional_edges(
+        "check_code_imports",
+        decide_to_finish,
+        {
+            "end": END,
+            "generate": "generate",
+        },
+    )
+
+    # Compile
+    app = workflow.compile()
+    config = {"recursion_limit": 20}
+    app.invoke({"keys": {"question": question, "iterations": 0}}, config=config)

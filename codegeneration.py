@@ -109,7 +109,7 @@ def run_model():
         code: str = Field(description="Code block not including import statements")
 
     ## LLM
-    model = ChatOpenAI(api_key=api_key, temperature=0, model="gpt-4-turbo-preview")
+    model = ChatOpenAI(api_key=api_key, temperature=0, model="gpt-4-turbo-preview", stop = ["st.altair_chart"])
 
     # Tool
     code_tool_oai = convert_to_openai_tool(code)
