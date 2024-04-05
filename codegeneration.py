@@ -93,8 +93,7 @@ def Document_loader():
         doc_sorted = sorted(streamlit_docs, key = lambda x: x.metadata['source'])
         doc_reversed = list(reversed(doc_sorted))
     
-        # concating all the docs
-        # all_docs = "\n\n\n --- \n\n\n".join([doc.page_content for doc in doc_reversed])
+    
         return doc_reversed
 
 
@@ -140,7 +139,7 @@ def run_model():
         # Prompt
     prompt = PromptTemplate(
             template=template,
-            input_variables=["context", "question", "generation", "error"],
+            input_variables=["context", "question"],
         )
 
         # Chain
