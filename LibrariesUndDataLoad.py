@@ -16,7 +16,9 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
 
+from langchain_core.output_parsers import StrOutputParser
 
 # # langsmith tracing
 # from langsmith.wrappers import wrap_openai
