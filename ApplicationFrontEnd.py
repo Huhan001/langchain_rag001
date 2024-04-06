@@ -1,5 +1,5 @@
 import streamlit as st
-from Application.SelfCorrectiveLLM import *
+from SelfCorrectiveLLM import *
 import pandas as pd
 
 
