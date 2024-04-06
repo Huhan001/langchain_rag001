@@ -3,7 +3,7 @@ import re
 
 
 
-def run_model():
+def run_model(user_question):
     ## Data model
     dataset = loading_dataset()
     class code(BaseModel):
@@ -41,11 +41,7 @@ def run_model():
         Please make sure and always have the deta loaded in the code is always equal to dataset = loading_dataset() format\n
         Structure your answer with a description explaining the visualization created. explain so the user understand the visualization . \n
         Again please, please make sure that the deta loaded in the code is always equal to dataset = loading_dataset() \n
-        conclude the code with st.altair_chart(chart, use_container_width=True) \n
-        "st.altair_chart(chart, use_container_width=True)" very important to execute the generated code and display \n
-        make sure chart at the end is set to st.altair_chart(c, use_container_width=True) to display the chart \n
         Then list the imports. And finally list the functioning code block. \n
-        end with st.altair_chart(chart, use_container_width=True) \n
         Here is the user question: \n --- --- --- \n {question}"""
     
         # Prompt
@@ -65,7 +61,7 @@ def run_model():
             | parser_tool
         )
     
-    outputs = chain.invoke({"question": "what is the relationship between species, boddymass and sex?, use barxhart to show the relationship"})
+    outputs = chain.invoke({"question": user_question})
     
     full_code = outputs[0].imports + "\n" + outputs[0].code
     return full_code
@@ -78,18 +74,6 @@ def replace_loading_dataset_with_csv_read(code):
     return modified_code
 
 
-def check_chart_location(code):
-    # Regular expression pattern to match 'chart' surrounded by non-alphanumeric characters
-    pattern = r'(?<!\w)chart(?!\w)'
-    
-    # Search for the pattern in the code
-    match = re.search(pattern, code)
-    
-    # If 'chart' is found and is not part of another variable or function name
-    if match:
-        return True
-    
-    return False
 
 def check_data_input(code):
     if 'dataset = st.session_state.dataframe.copy()' not in code:
@@ -105,14 +89,18 @@ def enforce_rules(code):
     # Replace loading_dataset() with st.session_state.dataframe.copy() first
     inside_code = replace_loading_dataset_with_csv_read(code)
     
-    if not check_chart_location(inside_code):
-        # Replace standalone 'chart' with 'st.altair_chart(chart, use_container_width=True)'
-        inside_code = re.sub(r'(?<!\w)chart(?!\w)', 'st.altair_chart(chart, use_container_width=True)', inside_code)
-    
     # Check data input and insert if necessary
     if not check_data_input(inside_code):
         inside_code = 'dataset = st.session_state.dataframe.copy()\n' + inside_code
     
+    # Extract the last variable name
+    last_variable_match = re.findall(r'\b(\w+)\s*$', inside_code)
+    last_variable = last_variable_match[0] if last_variable_match else None
+    
+    if last_variable:
+        # Inject the last variable into st.altair_chart syntax
+        inside_code += f'\nst.altair_chart({last_variable}, use_container_width=True)'
+
     # Clean the code
     code_cleaned = clean_code(inside_code)
     

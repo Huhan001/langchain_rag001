@@ -50,4 +50,15 @@ def Document_loader():
         return streamlit_docs
 
 
+def loading_dataset():
+    
+        # loading csv files
+        data = pd.read_csv("/Users/humphreyhanson/fleet/langchain_rag001/dataset/penguins.csv")
+
+        # Convert DataFrame to a dictionary
+        penguins_dict = data.to_dict(orient='list')      
+        
+        return penguins_dict
+
+
 # Code should be executable within streamlit and compatible with streamlit chart elements, specifically st.altair_chart. \n
