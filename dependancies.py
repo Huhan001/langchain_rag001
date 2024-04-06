@@ -53,7 +53,8 @@ def Document_loader():
 def loading_dataset():
     
         # loading csv files
-        data = pd.read_csv("/Users/humphreyhanson/fleet/langchain_rag001/dataset/penguins.csv")
+        data = pd.read_csv("/Users/humphreyhanson/fleet/langchain_rag001/dataset/diamonds.csv")
+        data = data.head(250)
 
         # Convert DataFrame to a dictionary
         penguins_dict = data.to_dict(orient='list')      
