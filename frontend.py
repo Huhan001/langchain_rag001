@@ -14,9 +14,11 @@ st.session_state.dataframe = data
   
 
 try:
-    newone = enforce_rules(run_model("what is the price of diamond according to carat and depth?"))
+    # newone = enforce_rules(run_model("what is the price of diamond according to carat and depth?"))
     # st.code(newone)
-    timess = exec(newone)
-    st.altair_chart(timess, use_container_width=True)
+    newone = code_and_test("visualize the relation between price and depth, and carat of diamond?")
+    st.code(newone)
+    # timess = exec(newone)
+    # st.altair_chart(timess, use_container_width=True)
 except AttributeError:
     pass  # Suppress the AttributeError

@@ -1,5 +1,6 @@
 from dependancies import *
 import re
+import streamlit as st
 
 
 
@@ -107,4 +108,22 @@ def enforce_rules(code):
     return code_cleaned
 
 
+
+def code_and_test(user_question):
+    while True:
+        try:
+            generated_code = run_model(user_question)
+            enforced_code = enforce_rules(generated_code)
+            exec(enforced_code, globals())
+            print("Code execution successful.")
+            return enforced_code
+        except AttributeError:
+            # Ignore AttributeError related to session state initialization failure
+            print("Ignoring AttributeError related to session state initialization failure.")
+            print("Stopping code generation and testing...")
+        except Exception as e:
+            print("Error occurred during code execution:", e)
+            print("Rerunning code generation and testing...")
+            continue
+        break  # Stop the loop after successful code execution
 
