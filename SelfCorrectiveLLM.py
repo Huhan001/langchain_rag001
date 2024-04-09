@@ -43,6 +43,8 @@ def run_model(user_question):
         Structure your answer with a description explaining the visualization created. explain so the user understand the visualization . \n
         Again please, please make sure that the deta loaded in the code is always equal to dataset = loading_dataset() \n
         Then list the imports. And finally list the functioning code block. \n
+        plot width = 600 and height = 400 make sure \n
+        here is an example; chart = alt.Chart(somedata) and the end is chart. or chart is to contain all the plot logic. and simply chart \n.
         Here is the user question: \n --- --- --- \n {question}"""
     
         # Prompt
